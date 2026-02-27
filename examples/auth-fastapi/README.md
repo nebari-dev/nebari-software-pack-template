@@ -1,4 +1,4 @@
-# Example 2: Auth-Aware Pack (FastAPI)
+# Example 4: Auth-Aware Helm Pack (FastAPI)
 
 A custom FastAPI application that reads the authenticated user's identity from
 the IdToken cookie set by Envoy Gateway after Keycloak OIDC authentication.
@@ -25,30 +25,69 @@ When deployed on Nebari with auth enabled:
 Your app never handles the login flow - Envoy Gateway does it all. You just
 read the resulting cookie.
 
-## Quick Start
+## Deploying to Nebari
 
-### Build the container image
+### ArgoCD Application (recommended)
 
-```bash
-cd examples/auth-fastapi
-docker build -t my-pack-fastapi:latest .
+The container image is automatically built and published to GHCR by CI when
+changes are pushed to `examples/auth-fastapi/app/` or the `Dockerfile`. Create
+an ArgoCD Application:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-pack
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/YOUR-ORG/YOUR-REPO.git
+    targetRevision: main
+    path: examples/auth-fastapi/chart
+    helm:
+      valuesObject:
+        nebariapp:
+          enabled: true
+          hostname: my-pack.nebari.example.com
+          auth:
+            enabled: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: my-pack
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
 ```
 
-### Run locally with Docker (no auth)
-
-```bash
-docker run -p 8000:8000 my-pack-fastapi:latest
-# Open http://localhost:8000 - shows "Not Authenticated" page
-```
-
-### Deploy on Nebari with auth
+### Helm install
 
 ```bash
 helm install my-pack ./chart/ \
   --set nebariapp.enabled=true \
   --set nebariapp.hostname=my-pack.nebari.example.com \
-  --set image.repository=your-registry/my-pack-fastapi \
-  --set image.tag=latest
+  --set nebariapp.auth.enabled=true
+```
+
+## Local development
+
+The container image is pre-built and published to GHCR by CI. You can run it
+locally without building:
+
+```bash
+docker run -p 8000:8000 ghcr.io/nebari-dev/nebari-software-pack-template/auth-fastapi-example:latest
+# Open http://localhost:8000 - shows "Not Authenticated" page
+```
+
+To build locally from the Dockerfile instead:
+
+```bash
+cd examples/auth-fastapi
+docker build -t my-pack-fastapi:latest .
+docker run -p 8000:8000 my-pack-fastapi:latest
 ```
 
 ## Code Walkthrough

@@ -1,25 +1,49 @@
 # Local development Makefile for Nebari Software Pack examples
 #
-# Prerequisites: docker, k3d, ctlptl, tilt, helm
+# Prerequisites: docker, kind, helm, kubectl
 #
 # Usage:
-#   make up-basic      Deploy the basic nginx example
-#   make up-fastapi    Build + deploy the FastAPI example
-#   make up-podinfo    Deploy the podinfo wrapper example
-#   make down          Tear down the cluster and stop Tilt
+#   make up-vanilla    Deploy the vanilla YAML example
+#   make up-kustomize  Deploy the kustomize example (dev overlay)
+#   make up-basic      Deploy the basic nginx Helm example
+#   make up-fastapi    Deploy the FastAPI Helm example (pre-built GHCR image)
+#   make up-podinfo    Deploy the podinfo wrapper Helm example
+#   make down          Delete the kind cluster
 
+VANILLA_DIR   := ../examples/vanilla-yaml
+KUSTOMIZE_DIR := ../examples/kustomize-nginx/overlays/dev
 CHART_BASIC   := ../examples/basic-nginx/chart
 CHART_FASTAPI := ../examples/auth-fastapi/chart
 CHART_PODINFO := ../examples/wrap-existing-chart/chart
-CLUSTER_NAME  := k3d-my-pack-dev
+CLUSTER_NAME  := my-pack-dev
 
-.PHONY: up-basic up-fastapi up-podinfo down cluster
+.PHONY: up-vanilla up-kustomize up-basic up-fastapi up-podinfo down cluster
 
-# Create the k3d cluster (idempotent)
+# Create the kind cluster (idempotent)
 cluster:
-	ctlptl apply -f ctlptl-config.yaml
+	kind get clusters | grep -q "^$(CLUSTER_NAME)$$" || kind create cluster --name $(CLUSTER_NAME)
 
-# Deploy basic nginx example
+# Deploy vanilla YAML example (Deployment + Service only, no NebariApp)
+up-vanilla: cluster
+	kubectl apply -f $(VANILLA_DIR)/deployment.yaml \
+		-f $(VANILLA_DIR)/service.yaml
+	kubectl wait --for=condition=ready pod -l app=my-pack --timeout=120s
+	@echo ""
+	@echo "Vanilla nginx deployed. Access via:"
+	@echo "  kubectl port-forward svc/my-pack 8080:80"
+	@echo "  open http://localhost:8080"
+
+# Deploy kustomize example (dev overlay, without NebariApp)
+up-kustomize: cluster
+	kubectl apply -f $(KUSTOMIZE_DIR)/../../base/deployment.yaml \
+		-f $(KUSTOMIZE_DIR)/../../base/service.yaml
+	kubectl wait --for=condition=ready pod -l app=my-pack --timeout=120s
+	@echo ""
+	@echo "Kustomize nginx deployed. Access via:"
+	@echo "  kubectl port-forward svc/my-pack 8080:80"
+	@echo "  open http://localhost:8080"
+
+# Deploy basic nginx Helm example
 up-basic: cluster
 	helm upgrade --install my-pack $(CHART_BASIC) \
 		--set nebariapp.enabled=false \
@@ -29,21 +53,17 @@ up-basic: cluster
 	@echo "  kubectl port-forward svc/my-pack-my-pack 8080:80"
 	@echo "  open http://localhost:8080"
 
-# Build and deploy auth-aware FastAPI example
+# Deploy auth-aware FastAPI Helm example (uses pre-built GHCR image)
 up-fastapi: cluster
-	docker build -t localhost:5005/my-pack-fastapi:dev ../examples/auth-fastapi/
-	docker push localhost:5005/my-pack-fastapi:dev
 	helm upgrade --install my-pack $(CHART_FASTAPI) \
 		--set nebariapp.enabled=false \
-		--set image.repository=localhost:5005/my-pack-fastapi \
-		--set image.tag=dev \
 		--wait --timeout 2m
 	@echo ""
 	@echo "FastAPI app deployed. Access via:"
 	@echo "  kubectl port-forward svc/my-pack-my-pack 8080:80"
 	@echo "  open http://localhost:8080"
 
-# Deploy podinfo wrapper example
+# Deploy podinfo wrapper Helm example
 up-podinfo: cluster
 	helm dependency update $(CHART_PODINFO)
 	helm upgrade --install my-pack $(CHART_PODINFO) \
@@ -54,9 +74,6 @@ up-podinfo: cluster
 	@echo "  kubectl port-forward svc/my-pack-podinfo 9898:9898"
 	@echo "  open http://localhost:9898"
 
-# Tear down everything
+# Delete the kind cluster
 down:
-	-helm uninstall my-pack 2>/dev/null || true
-	-tilt down 2>/dev/null || true
-	-pkill -f "tilt up" 2>/dev/null || true
-	ctlptl delete -f ctlptl-config.yaml
+	kind delete cluster --name $(CLUSTER_NAME)

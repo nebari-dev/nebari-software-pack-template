@@ -1,8 +1,9 @@
-# Example 3: Wrapping an Existing Chart (Podinfo)
+# Example 5: Wrapping an Existing Chart (Podinfo)
 
-This is the most realistic use case for a Nebari Software Pack. Instead of writing
-your own Deployment and Service templates, you add an existing Helm chart as a
-dependency and create a NebariApp resource that points to its service.
+This is the most realistic use case for a Helm-based Nebari Software Pack.
+Instead of writing your own Deployment and Service templates, you add an
+existing Helm chart as a dependency and create a NebariApp resource that points
+to its service.
 
 **Key lesson: You don't rewrite the app - you just connect it to Nebari.**
 
@@ -31,39 +32,78 @@ templates/
 The only template you write is `nebariapp.yaml`. Everything else comes from the
 upstream chart.
 
-## Quick Start
+## Deploying to Nebari
 
-### Build dependencies
+### ArgoCD Application (recommended)
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-pack
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/YOUR-ORG/YOUR-REPO.git
+    targetRevision: main
+    path: examples/wrap-existing-chart/chart
+    helm:
+      valuesObject:
+        nebariapp:
+          enabled: true
+          hostname: my-pack.nebari.example.com
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: my-pack
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+```
+
+To override upstream values via ArgoCD:
+
+```yaml
+    helm:
+      valuesObject:
+        nebariapp:
+          enabled: true
+          hostname: my-pack.nebari.example.com
+        podinfo:
+          ui:
+            message: "Custom greeting!"
+```
+
+### Helm install
+
+```bash
+# Build dependencies first
+helm dependency update ./chart/
+
+# Deploy on Nebari
+helm install my-pack ./chart/ \
+  --set nebariapp.enabled=true \
+  --set nebariapp.hostname=my-pack.nebari.example.com
+
+# Override upstream values
+helm install my-pack ./chart/ \
+  --set nebariapp.enabled=true \
+  --set nebariapp.hostname=my-pack.nebari.example.com \
+  --set podinfo.ui.message="Custom greeting!"
+```
+
+## Local development (standalone, no Nebari)
 
 ```bash
 helm dependency update ./chart/
-```
-
-### Deploy locally (no Nebari)
-
-```bash
 helm install test-podinfo ./chart/
 
 # Access via port-forward
 kubectl port-forward svc/test-podinfo-podinfo 9898:9898
 # Open http://localhost:9898
-```
-
-### Deploy on Nebari
-
-```bash
-helm install my-pack ./chart/ \
-  --set nebariapp.enabled=true \
-  --set nebariapp.hostname=my-pack.nebari.example.com
-```
-
-### Override upstream values
-
-```bash
-helm install my-pack ./chart/ \
-  --set nebariapp.enabled=true \
-  --set nebariapp.hostname=my-pack.nebari.example.com \
-  --set podinfo.ui.message="Custom greeting!"
 ```
 
 ## Files

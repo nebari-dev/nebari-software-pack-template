@@ -127,9 +127,52 @@ kubectl label namespace my-pack nebari.dev/managed=true
 
 Without this label, the NebariApp will show `NamespaceNotOptedIn` and no resources will be created.
 
-## Helm Template Pattern
+## Deployment Patterns
 
-In a Nebari Software Pack, the NebariApp is typically rendered conditionally:
+The NebariApp resource can be included in your pack using any deployment method.
+
+### Plain YAML
+
+The NebariApp is just another manifest file alongside your Deployment and Service:
+
+```yaml
+# nebariapp.yaml
+apiVersion: reconcilers.nebari.dev/v1
+kind: NebariApp
+metadata:
+  name: my-pack
+spec:
+  hostname: my-pack.nebari.example.com
+  service:
+    name: my-pack
+    port: 80
+```
+
+When deploying standalone (without Nebari), skip this file in your `kubectl apply`.
+
+### Kustomize
+
+Include the NebariApp in your base `kustomization.yaml` and use overlays to
+patch environment-specific values like `hostname` and `auth`:
+
+```yaml
+# overlays/production/nebariapp-patch.yaml
+apiVersion: reconcilers.nebari.dev/v1
+kind: NebariApp
+metadata:
+  name: my-pack
+spec:
+  hostname: my-pack.nebari.example.com
+  auth:
+    enabled: true
+    groups:
+      - admin
+```
+
+### Helm
+
+In Helm charts, you can make the NebariApp conditional so the chart works both
+standalone and on Nebari:
 
 ```yaml
 {{- if .Values.nebariapp.enabled }}

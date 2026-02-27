@@ -274,7 +274,7 @@ Grafana mapping groups to roles).
 ## Limitations
 
 - **Local development:** The OIDC flow requires Keycloak and Envoy Gateway. When
-  developing locally with k3d, set `nebariapp.enabled=false` and test without auth.
+  developing locally with kind, set `nebariapp.enabled=false` and test without auth.
   The FastAPI example shows "Not Authenticated" when no IdToken cookie is present.
 
 - **Token expiration:** Envoy Gateway handles token refresh automatically via refresh
