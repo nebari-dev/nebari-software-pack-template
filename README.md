@@ -2,6 +2,7 @@
 
 [![Lint](https://github.com/nebari-dev/nebari-software-pack-template/actions/workflows/lint.yaml/badge.svg)](https://github.com/nebari-dev/nebari-software-pack-template/actions/workflows/lint.yaml)
 [![Test](https://github.com/nebari-dev/nebari-software-pack-template/actions/workflows/test.yaml/badge.svg)](https://github.com/nebari-dev/nebari-software-pack-template/actions/workflows/test.yaml)
+[![Integration Test](https://github.com/nebari-dev/nebari-software-pack-template/actions/workflows/test-integration.yaml/badge.svg)](https://github.com/nebari-dev/nebari-software-pack-template/actions/workflows/test-integration.yaml)
 
 A template repository for building **Nebari Software Packs** - Kubernetes
 applications that deploy on the [Nebari](https://nebari.dev) platform with
@@ -119,6 +120,7 @@ nebari-software-pack-template/
     build-image.yaml             # Build + publish auth-fastapi image to GHCR
     lint.yaml                    # Manifest validation (all examples)
     test.yaml                    # Integration tests on kind cluster
+    test-integration.yaml        # NebariApp integration tests (full stack)
     release.yaml                 # Helm package + GitHub release + gh-pages index
   examples/
     vanilla-yaml/                # Example 1: Plain Kubernetes manifests
@@ -170,7 +172,8 @@ nebari-software-pack-template/
           NOTES.txt
       README.md
   dev/
-    Makefile                     # make up-vanilla / up-kustomize / up-basic / ...
+    Makefile                     # Local dev with full Nebari stack on kind
+    .cache/                      # (gitignored) Cloned nebari-operator scripts
   docs/
     nebariapp-crd-reference.md   # Full NebariApp field reference
     auth-flow.md                 # Authentication flow details
@@ -450,8 +453,14 @@ For more details, see [docs/auth-flow.md](docs/auth-flow.md).
 ## Local Development
 
 The `dev/` directory provides a Makefile for local development with
-[kind](https://kind.sigs.k8s.io/). A kind cluster is created automatically
-when you run any `up-*` target.
+[kind](https://kind.sigs.k8s.io/). Running any `up-*` target automatically
+creates a kind cluster with the full Nebari infrastructure stack - MetalLB,
+Envoy Gateway, cert-manager, Keycloak, and the nebari-operator - so every
+example deploys with NebariApp enabled, routing, TLS, and authentication
+working just like a real Nebari cluster.
+
+The first `make up-*` run takes ~5-10 minutes (cluster and infrastructure
+setup). Subsequent runs reuse the existing cluster and are fast.
 
 ```bash
 cd dev
@@ -468,22 +477,27 @@ make up-basic
 # Deploy podinfo Helm example
 make up-podinfo
 
-# Deploy FastAPI Helm example (uses pre-built GHCR image)
+# Deploy FastAPI Helm example (auth enabled, uses pre-built GHCR image)
 make up-fastapi
+
+# Update /etc/hosts with NebariApp hostnames
+make update-hosts
 
 # Delete the kind cluster
 make down
 ```
 
-### Limitations
+Each `up-*` target deploys with NebariApp enabled at `https://my-pack.nebari.local`,
+waits for the NebariApp Ready condition, and updates `/etc/hosts` so you can access
+the app in your browser.
 
-- **No auth locally** - The OIDC flow requires Keycloak and Envoy Gateway, which
-  are part of the Nebari platform. The FastAPI example will show "Not Authenticated"
-  when running locally.
-- **NebariApp CRD not available** - The NebariApp CRD only exists on clusters with
-  the nebari-operator. For Helm examples, set `nebariapp.enabled=false`. For vanilla
-  YAML, skip the `nebariapp.yaml` file. The Makefile targets handle this
-  automatically.
+### What's not included
+
+The local dev environment does not include ArgoCD. If you need to develop or
+test the ArgoCD Application that wraps your software pack, you'll need to set
+that up separately. In the future, Nebari will support pointing at a local Git
+repo (and creating a temporary one if none is provided) so ArgoCD-based
+workflows can be tested locally without an external repository.
 
 ## CI/CD Pipeline
 
@@ -503,14 +517,28 @@ example image to `ghcr.io/nebari-dev/nebari-software-pack-template/auth-fastapi-
 
 ### Test (`test.yaml`)
 
-Runs on every push and PR. Integration tests on a kind cluster:
+Runs on every push and PR. Standalone integration tests on a kind cluster:
 
 - Creates a kind cluster
-- Deploys the vanilla-yaml example, waits for pods, runs health check
-- Deploys the kustomize example (dev overlay, without NebariApp), waits for pods, runs health check
-- Installs the basic-nginx Helm chart, waits for pods, runs health check
-- Installs the auth-fastapi Helm chart (pre-built GHCR image), waits for pods, runs health check
-- Installs the podinfo wrapper Helm chart, waits for pods, runs health check
+- Deploys each example with `nebariapp.enabled=false` (no operator required)
+- Waits for pods and runs HTTP health checks via port-forward
+- Validates that each example works as a standalone Kubernetes deployment
+
+### Integration Test (`test-integration.yaml`)
+
+Runs on pushes to main and PRs that modify `examples/`, `dev/`, or the workflow
+file. Tests each example with `nebariapp.enabled=true` on a full Nebari
+infrastructure stack:
+
+- Creates a kind cluster with MetalLB, Envoy Gateway, cert-manager, and Keycloak
+- Installs the nebari-operator from the latest published release
+- Deploys each example with NebariApp enabled and a `*.nebari.local` hostname
+- Verifies NebariApp reaches `Ready` condition (HTTPRoute created, TLS configured)
+- For auth-enabled examples (kustomize production, auth-fastapi), verifies
+  SecurityPolicy is created
+
+This catches bugs in NebariApp configuration, operator compatibility, and routing
+setup that the standalone test cannot detect.
 
 ### Release (`release.yaml`)
 
