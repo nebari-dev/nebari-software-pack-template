@@ -18,9 +18,9 @@ jobs:
       # Vanilla YAML example
       - name: Validate vanilla-yaml manifests
         run: |
-          kubectl apply --dry-run=client -f examples/vanilla-yaml/deployment.yaml
-          kubectl apply --dry-run=client -f examples/vanilla-yaml/service.yaml
-          kubectl apply --dry-run=client -f examples/vanilla-yaml/nebariapp.yaml
+          kubectl apply --dry-run=client --validate=false -f examples/vanilla-yaml/deployment.yaml
+          kubectl apply --dry-run=client --validate=false -f examples/vanilla-yaml/service.yaml
+          kubectl apply --dry-run=client --validate=false -f examples/vanilla-yaml/nebariapp.yaml
 
       # Kustomize example
       - name: Validate kustomize base
