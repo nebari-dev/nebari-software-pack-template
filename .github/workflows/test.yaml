@@ -1,0 +1,64 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: pack-test
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      # Test basic nginx example
+      - name: Install basic-nginx chart
+        run: |
+          helm install test-basic examples/basic-nginx/chart/ \
+            --set nebariapp.enabled=false \
+            --wait --timeout 2m
+
+      - name: Wait for basic-nginx pods
+        run: kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance=test-basic --timeout=120s
+
+      - name: Health check basic-nginx
+        run: |
+          kubectl port-forward svc/test-basic-my-pack 8080:80 &
+          sleep 3
+          curl -sf http://localhost:8080
+          kill %1
+
+      - name: Uninstall basic-nginx
+        run: helm uninstall test-basic --wait
+
+      # Test podinfo wrapper example
+      - name: Update podinfo dependency
+        run: helm dependency update examples/wrap-existing-chart/chart/
+
+      - name: Install wrap-existing-chart
+        run: |
+          helm install test-podinfo examples/wrap-existing-chart/chart/ \
+            --set nebariapp.enabled=false \
+            --wait --timeout 3m
+
+      - name: Wait for podinfo pods
+        run: kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=test-podinfo --timeout=120s
+
+      - name: Health check podinfo
+        run: |
+          kubectl port-forward svc/test-podinfo 9898:9898 &
+          sleep 3
+          curl -sf http://localhost:9898
+          kill %1
+
+      - name: Uninstall podinfo
+        run: helm uninstall test-podinfo --wait

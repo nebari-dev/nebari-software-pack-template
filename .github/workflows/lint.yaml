@@ -1,0 +1,49 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+
+      # Basic nginx example
+      - name: Lint basic-nginx
+        run: helm lint examples/basic-nginx/chart/
+
+      - name: Template basic-nginx (NebariApp disabled)
+        run: helm template test examples/basic-nginx/chart/ --set nebariapp.enabled=false
+
+      - name: Template basic-nginx (NebariApp enabled)
+        run: helm template test examples/basic-nginx/chart/ --set nebariapp.enabled=true --set nebariapp.hostname=test.example.com
+
+      # Auth-aware FastAPI example
+      - name: Lint auth-fastapi
+        run: helm lint examples/auth-fastapi/chart/
+
+      - name: Template auth-fastapi (NebariApp disabled)
+        run: helm template test examples/auth-fastapi/chart/ --set nebariapp.enabled=false
+
+      - name: Template auth-fastapi (NebariApp enabled)
+        run: helm template test examples/auth-fastapi/chart/ --set nebariapp.enabled=true --set nebariapp.hostname=test.example.com
+
+      # Wrap existing chart (Podinfo) example
+      - name: Update podinfo dependency
+        run: helm dependency update examples/wrap-existing-chart/chart/
+
+      - name: Lint wrap-existing-chart
+        run: helm lint examples/wrap-existing-chart/chart/
+
+      - name: Template wrap-existing-chart (NebariApp disabled)
+        run: helm template test examples/wrap-existing-chart/chart/ --set nebariapp.enabled=false
+
+      - name: Template wrap-existing-chart (NebariApp enabled)
+        run: helm template test examples/wrap-existing-chart/chart/ --set nebariapp.enabled=true --set nebariapp.hostname=test.example.com
