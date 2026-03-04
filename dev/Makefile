@@ -68,11 +68,16 @@ _cluster-create: _clone-operator _kind-create _metallb _services _keycloak-setup
 	@echo ""
 	@echo "Run 'make up-basic' (or any up-* target) to deploy an example."
 
+# Pin to fix branch until nebari-dev/nebari-operator#55 is merged
+# and a new release is cut.
+OPERATOR_REF := fix/keycloak-duplicate-env
+
 _clone-operator:
 	@if [ ! -d "$(OPERATOR_REPO)" ]; then \
-		echo "Cloning nebari-operator into $(OPERATOR_REPO)..."; \
+		echo "Cloning nebari-operator ($(OPERATOR_REF)) into $(OPERATOR_REPO)..."; \
 		mkdir -p $(CACHE_DIR); \
-		git clone --depth 1 https://github.com/nebari-dev/nebari-operator.git $(OPERATOR_REPO); \
+		git clone --depth 1 --branch $(OPERATOR_REF) \
+			https://github.com/nebari-dev/nebari-operator.git $(OPERATOR_REPO); \
 	else \
 		echo "nebari-operator already cloned"; \
 	fi
@@ -107,7 +112,7 @@ _keycloak-setup:
 
 _operator:
 	@echo "Installing nebari-operator..."
-	kubectl apply -f https://github.com/nebari-dev/nebari-operator/releases/latest/download/install.yaml
+	kubectl apply -f https://github.com/nebari-dev/nebari-operator/releases/download/v0.1.0-alpha.4/install.yaml
 	kubectl wait --for=condition=available deployment/nebari-operator-controller-manager \
 		-n nebari-operator-system --timeout=120s
 	@echo "nebari-operator is running"
