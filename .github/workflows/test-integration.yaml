@@ -20,13 +20,10 @@ jobs:
       - name: Checkout software-pack-template
         uses: actions/checkout@v4
 
-      # Pin to fix branch until nebari-dev/nebari-operator#55 is merged
-      # and a new release is cut. Then update ref + install URL below.
       - name: Checkout nebari-operator (for dev/scripts)
         uses: actions/checkout@v4
         with:
           repository: nebari-dev/nebari-operator
-          ref: fix/keycloak-duplicate-env
           path: nebari-operator
 
       - name: Create kind cluster
@@ -89,7 +86,7 @@ jobs:
       # ============================================================
       - name: Install nebari-operator
         run: |
-          kubectl apply -f https://github.com/nebari-dev/nebari-operator/releases/download/v0.1.0-alpha.4/install.yaml
+          kubectl apply -f https://github.com/nebari-dev/nebari-operator/releases/download/v0.1.0-alpha.5/install.yaml
 
       - name: Wait for nebari-operator
         run: |
