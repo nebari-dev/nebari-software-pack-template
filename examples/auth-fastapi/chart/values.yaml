@@ -35,6 +35,15 @@ nebariapp:
   service:
     name: ""   # Defaults to release fullname
     port: 80
+  routing:
+    routes:
+      - pathPrefix: /
+        pathType: PathPrefix
+    publicRoutes:
+      - pathPrefix: /health
+        pathType: Exact
+    tls:
+      enabled: true
   auth:
     enabled: true
     provider: keycloak
