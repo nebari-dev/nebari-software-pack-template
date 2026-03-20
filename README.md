@@ -427,7 +427,7 @@ Gateway SecurityPolicy that handles the full OIDC flow:
    - IdToken-<suffix>     (JWT with user claims)
    - AccessToken-<suffix>
    - RefreshToken-<suffix>
-   (<suffix> is an 8-char hex derived from the SecurityPolicy UID)
+   (<suffix> is an 7-char, lower-case hex derived from the SecurityPolicy UID)
 7. Request (now with cookies) is forwarded to your app
 ```
 
