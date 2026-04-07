@@ -122,9 +122,54 @@ To wrap a different upstream chart:
 
 1. Replace the `dependencies` entry in `Chart.yaml` with your chart
 2. Update `nebariapp.service.port` to match the upstream service port
-3. Update the `my-pack.podinfo-service-name` helper in `_helpers.tpl` to match
-   the upstream chart's service naming convention
-4. Add any value overrides under the dependency's key in `values.yaml`
-5. Run `helm dependency update ./chart/`
+3. **Discover the upstream service name** (see below)
+4. Update the service name helper in `_helpers.tpl` to match
+5. Add any value overrides under the dependency's key in `values.yaml`
+6. Run `helm dependency update ./chart/`
+
+### Discovering the upstream service name
+
+The NebariApp must reference the upstream chart's Service by its exact name.
+Different charts use different naming conventions. **Always verify:**
+
+```bash
+helm template myrelease ./chart/ | grep "kind: Service" -A2
+```
+
+Common patterns:
+- `<release>-<chartname>` (e.g., `myrelease-podinfo`) - most charts
+- `<release>` only (e.g., `myrelease`) - when the release name contains the
+  chart name, the fullname template collapses (common with charts like Superset)
+
+Don't assume - always check with `helm template`.
+
+### Wrapping charts with Bitnami sub-dependencies
+
+Many popular Helm charts (Superset, Airflow, etc.) use Bitnami PostgreSQL and
+Redis as sub-chart dependencies. Since August 2025, Bitnami images are behind a
+paywall. The `bitnamilegacy/*` Docker Hub mirrors exist but are frozen and receive
+no security updates.
+
+If your upstream chart depends on Bitnami sub-charts:
+- Override image repositories (e.g., `postgresql.image.repository: bitnamilegacy/postgresql`)
+- Consider alternatives: [CloudNativePG](https://cloudnative-pg.io/) for PostgreSQL,
+  [Valkey](https://valkey.io/) for Redis
+- See [nebari-dev/nebari-operator#96](https://github.com/nebari-dev/nebari-operator/issues/96)
+  for the longer-term platform solution
+
+### Sub-chart values are static
+
+Helm sub-chart values do not support template expressions (`{{ }}`). You cannot
+dynamically generate configuration for the upstream app from your wrapper chart's
+values.yaml. If you need templated config (e.g., generating Python OAuth config
+from structured values), put it in example values files that deployers customize,
+or create a ConfigMap template in your wrapper chart and mount it via the upstream
+chart's volume support.
+
+### App-native OAuth for RBAC
+
+If your wrapped application needs role-based access control (not just
+"authenticated or not"), see the [App-Native OAuth](../../docs/auth-flow.md#app-native-oauth)
+section for how to wire operator-provisioned Keycloak credentials into your app.
 
 See the [main README](../../README.md) for the full customization guide.
