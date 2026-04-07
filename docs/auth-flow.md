@@ -172,25 +172,44 @@ When `auth.enabled: true`, the nebari-operator creates these resources:
 
 The operator calls the Keycloak Admin API to create an OIDC client:
 
-- **Client ID:** `<nebariapp-name>`
+- **Client ID:** `<namespace>-<nebariapp-name>` (namespace-scoped to prevent collisions)
 - **Client protocol:** `openid-connect`
-- **Access type:** `confidential`
-- **Redirect URIs:** `https://<hostname><redirectURI>`
+- **Access type:** `confidential` (not public)
+- **Standard Flow:** enabled (OAuth2 Authorization Code flow)
+- **Redirect URIs:** Both HTTP and HTTPS variants of the hostname
+- **Web Origins:** `*` (allows CORS)
 - **Scopes:** As configured in `spec.auth.scopes`
 
 ### 2. Kubernetes Secret
 
-Client credentials are stored in a Secret:
+Client credentials are stored in a Secret named `<nebariapp-name>-oidc-client`:
 
 ```yaml
 apiVersion: v1
 kind: Secret
 metadata:
   name: <nebariapp-name>-oidc-client
+  labels:
+    app.kubernetes.io/name: nebariapp
+    app.kubernetes.io/instance: <nebariapp-name>
+    app.kubernetes.io/managed-by: nebari-operator
 data:
-  client-id: <base64-encoded>
-  client-secret: <base64-encoded>
+  client-id: <base64-encoded>       # Always present. Value: <namespace>-<nebariapp-name>
+  client-secret: <base64-encoded>   # Always present. Cryptographically generated.
+  issuer-url: <base64-encoded>      # Present when external consumers are configured.
+                                    # Value: Keycloak issuer URL (e.g., https://keycloak.example.com/realms/nebari)
+  spa-client-id: <base64-encoded>   # Present when spaClient is enabled.
+  device-client-id: <base64-encoded> # Present when deviceFlowClient is enabled.
 ```
+
+The operator also creates RBAC resources granting your app's ServiceAccount read
+access to the secret:
+
+- **Role:** `<nebariapp-name>-oidc-secret-reader`
+- **RoleBinding:** `<nebariapp-name>-oidc-secret-reader`
+
+This means your app's pods can reference the secret in `env.valueFrom.secretKeyRef`
+without additional RBAC configuration.
 
 ### 3. Envoy Gateway SecurityPolicy (when `enforceAtGateway: true`)
 
@@ -249,10 +268,24 @@ spec:
     kind: ClusterIssuer
 ```
 
-## App-Native OAuth (enforceAtGateway: false)
+## App-Native OAuth
 
-Some applications handle OAuth natively (e.g., Grafana, GitLab). For these apps,
-set `enforceAtGateway: false`:
+Some applications handle OAuth natively (e.g., Grafana, Superset, Gitea). For these
+apps, the operator provisions the Keycloak client and stores credentials, but the app
+handles the OAuth flow itself. This is useful when the app needs deeper integration
+with the OAuth flow, such as mapping Keycloak groups/roles to app-internal roles.
+
+### Gateway-only auth (app reads JWT from cookies)
+
+If your app just needs user identity (not role mapping), use `enforceAtGateway: true`
+(the default) and read the IdToken cookie as described above.
+
+### App-native auth only (no gateway enforcement)
+
+Set `enforceAtGateway: false` to skip gateway auth. The operator will:
+- Provision a Keycloak client
+- Store credentials in a Secret
+- **NOT** create a SecurityPolicy
 
 ```yaml
 auth:
@@ -262,14 +295,64 @@ auth:
   enforceAtGateway: false
 ```
 
-The operator will:
-- Provision a Keycloak client
-- Store credentials in a Secret
-- **NOT** create a SecurityPolicy
+### Dual-layer auth (recommended for RBAC apps)
 
-Your app reads the credentials from the Secret and handles the OAuth flow itself.
-This is useful when the app needs deeper integration with the OAuth flow (like
-Grafana mapping groups to roles).
+Use both gateway enforcement AND app-native OAuth. The gateway ensures users are
+authenticated, while the app reads roles/groups for authorization:
+
+```yaml
+auth:
+  enabled: true
+  provider: keycloak
+  provisionClient: true
+  # enforceAtGateway defaults to true
+```
+
+The app also authenticates against the same Keycloak client to get roles/groups.
+
+### Wiring credentials to your app
+
+Reference the operator-created OIDC secret to inject credentials as environment
+variables. Use `valueFrom.secretKeyRef` to map specific keys:
+
+```yaml
+# In your Helm values (e.g., for an upstream chart's extraEnv/extraEnvRaw)
+extraEnvRaw:
+  - name: OAUTH_CLIENT_ID
+    valueFrom:
+      secretKeyRef:
+        name: <nebariapp-name>-oidc-client
+        key: client-id
+  - name: OAUTH_CLIENT_SECRET
+    valueFrom:
+      secretKeyRef:
+        name: <nebariapp-name>-oidc-client
+        key: client-secret
+  - name: OAUTH_ISSUER_URL
+    valueFrom:
+      secretKeyRef:
+        name: <nebariapp-name>-oidc-client
+        key: issuer-url
+        optional: true  # May not be present in all configurations
+```
+
+The OIDC discovery URL can be constructed as:
+`<issuer-url>/.well-known/openid-configuration`
+
+Your app then configures its OAuth provider using these environment variables.
+
+> **Note on `extraEnv` vs `extraEnvRaw`:** Many upstream Helm charts support
+> multiple env var formats. Use `extraEnvRaw` (or the equivalent) when you need
+> `valueFrom.secretKeyRef` syntax. Check your upstream chart's documentation for
+> the correct field name.
+
+### Example: Superset with Keycloak RBAC
+
+The [nebari-superset-pack](https://github.com/nebari-dev/nebari-superset-pack) uses
+dual-layer auth with a custom SecurityManager that reads Keycloak roles from the
+userinfo endpoint and maps them to Superset roles (Admin, Gamma, Public). See its
+[nebari-values.yaml](https://github.com/nebari-dev/nebari-superset-pack/blob/main/examples/nebari-values.yaml)
+for the complete configuration.
 
 ## Limitations
 
