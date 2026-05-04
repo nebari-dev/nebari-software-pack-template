@@ -208,21 +208,21 @@ jobs:
       - name: "Deploy wrap-existing-chart (podinfo)"
         run: |
           helm dependency update examples/wrap-existing-chart/chart/
-          helm install test-podinfo examples/wrap-existing-chart/chart/ \
+          helm install test-wrap examples/wrap-existing-chart/chart/ \
             --set nebariapp.enabled=true \
             --set nebariapp.hostname=podinfo.nebari.local \
             --wait --timeout 3m
 
       - name: "Verify wrap-existing-chart NebariApp"
         run: |
-          kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance=test-podinfo --timeout=120s
-          kubectl wait --for=condition=Ready nebariapp/test-podinfo-my-pack --timeout=120s
+          kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance=test-wrap --timeout=120s
+          kubectl wait --for=condition=Ready nebariapp/test-wrap-my-pack --timeout=120s
           kubectl get httproute -l app.kubernetes.io/managed-by=nebari-operator
           echo "wrap-existing-chart: NebariApp Ready"
 
       - name: "Cleanup wrap-existing-chart"
         if: always()
-        run: helm uninstall test-podinfo --wait || true
+        run: helm uninstall test-wrap --wait || true
 
       # ============================================================
       # Debug on failure

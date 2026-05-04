@@ -260,7 +260,8 @@ more specialized features. Each is documented in
 - **`auth.forwardAccessToken`** - send the user's access token to your app as
   `Authorization: Bearer <token>` so it can decode the JWT itself.
 - **`auth.denyRedirect`** - return 401 instead of redirecting to Keycloak when
-  matching headers are present (avoids PKCE races on SPA page loads).
+  matching headers are present. Most useful alongside `auth.spaClient` to avoid
+  PKCE races when an SPA fires several requests on page load.
 - **`auth.spaClient`** - provision a separate public Keycloak client for browser-
   based PKCE flows (React + `keycloak-js`, etc.).
 - **`auth.deviceFlowClient`** - provision a public client for the OAuth2 Device
@@ -429,8 +430,8 @@ spec:
 helm dependency update examples/wrap-existing-chart/chart/
 
 # Deploy standalone
-helm install test-podinfo examples/wrap-existing-chart/chart/
-kubectl port-forward svc/test-podinfo-podinfo 9898:9898
+helm install test-wrap examples/wrap-existing-chart/chart/
+kubectl port-forward svc/test-wrap-podinfo 9898:9898
 
 # Deploy on Nebari
 helm install my-pack examples/wrap-existing-chart/chart/ \

@@ -361,15 +361,21 @@ fields the **operator** understands - they go on `spec.auth` of the NebariApp re
 At runtime, the operator generates an Envoy Gateway `SecurityPolicy` from the NebariApp,
 and that SecurityPolicy has its own (much larger) set of OIDC tuning knobs.
 
-When you read Envoy Gateway docs and see OIDC tuning fields, mentally place each
-one in one of these buckets:
+This section is specifically about the **Envoy Gateway SecurityPolicy OIDC
+filter** fields. Other Keycloak-side or client-provisioning features (`spaClient`,
+`deviceFlowClient`, `keycloakConfig`, `tokenExchange`) are first-class NebariApp
+fields and are documented in
+[nebariapp-crd-reference.md](nebariapp-crd-reference.md).
+
+For the OIDC filter fields specifically, mentally place each one in one of these
+buckets:
 
 1. **Surfaced on NebariApp.** The operator exposes the field as a NebariApp
    `spec.auth.*` field and copies it into the SecurityPolicy at reconcile time.
    Currently this includes `forwardAccessToken` (`auth.forwardAccessToken`) and
    redirect-deny rules (`auth.denyRedirect`). Set these on the NebariApp.
 
-2. **Not surfaced on NebariApp.** Most fine-grained OIDC fields - including
+2. **Not surfaced on NebariApp.** Most fine-grained OIDC filter fields - including
    `cookieNames`, `disableIdToken`, `disableAccessToken`, `passThroughAuthHeader`,
    custom logout URLs, and similar - are not exposed on NebariApp today. To use
    them, either:

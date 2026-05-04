@@ -99,10 +99,10 @@ helm install my-pack ./chart/ \
 
 ```bash
 helm dependency update ./chart/
-helm install test-podinfo ./chart/
+helm install test-wrap ./chart/
 
 # Access via port-forward
-kubectl port-forward svc/test-podinfo-podinfo 9898:9898
+kubectl port-forward svc/test-wrap-podinfo 9898:9898
 # Open http://localhost:9898
 ```
 

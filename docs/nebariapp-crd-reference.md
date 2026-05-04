@@ -38,7 +38,7 @@ spec:
     provisionClient: true
     enforceAtGateway: true
     forwardAccessToken: false
-    redirectURI: /oauth2/callback
+    # redirectURI defaults to /oauth2/callback - omit to use the operator default
     scopes:
       - openid
       - profile
@@ -112,7 +112,7 @@ Used in both `spec.routing.routes[]` and `spec.routing.publicRoutes[]`.
 | `forwardAccessToken` | *bool | No | `false` | When `enforceAtGateway: true`, forward the user's OAuth access token to the upstream service via the `Authorization: Bearer <token>` header. Use when the app needs to read the JWT itself (e.g., to inspect the `groups` claim for per-user authorization). Without this, the gateway only stores the token in an encrypted session cookie that the backend cannot decode. |
 | `denyRedirect` | [][DenyRedirectHeader](#denyredirectheader) | No | - | Headers that, when matched, prevent the OIDC filter from redirecting to the IdP and instead return 401. Helps avoid PKCE race conditions when SPAs fire multiple parallel requests on page load. Only applies when `enforceAtGateway: true`. |
 | `redirectURI` | string | No | `"/oauth2/callback"` | OAuth2 callback path. The full URL is `https://<hostname><redirectURI>`. |
-| `clientSecretRef` | *string | No | - | Reference to a Secret containing `client-id` and `client-secret`. If omitted and `provisionClient` is true, the operator creates `<name>-oidc-client` with keys: `client-id`, `client-secret`, and `issuer-url`. |
+| `clientSecretRef` | string | No | - | Name (string) of a Secret in the same namespace containing keys `client-id` and `client-secret`. **Note:** the spec field is a plain string (the Secret name), not the `{name, namespace}` object reference used by `status.clientSecretRef`. If omitted and `provisionClient` is true, the operator creates a Secret named `<nebariapp-name>-oidc-client` with keys: `client-id`, `client-secret`, and `issuer-url`. |
 | `scopes` | []string | No | `["openid", "profile", "email"]` | OIDC scopes to request during authentication. |
 | `groups` | []string | No | - | Groups that have access. When specified, only users in these groups are authorized. Case-sensitive. |
 | `issuerURL` | string | No | - | OIDC issuer URL. Required when `provider=generic-oidc`, ignored for `keycloak`. Example: `https://accounts.google.com`. |
