@@ -219,7 +219,7 @@ spec:
     enabled: true                   # Require login (default: false)
     provider: keycloak              # keycloak or generic-oidc
     provisionClient: true           # Auto-create Keycloak client (default: true)
-    redirectURI: /                  # OAuth callback path
+    # redirectURI: /oauth2/callback # OAuth callback path (default shown; rarely needs overriding)
     scopes:                         # OIDC scopes to request
       - openid
       - profile
@@ -246,6 +246,35 @@ kind: NebariApp
 
 With plain YAML or Kustomize, the NebariApp manifest is always present. When
 deploying standalone, simply skip that file or exclude it from your apply command.
+
+### Beyond the basics
+
+The fields shown above cover the common cases. The operator also supports several
+more specialized features. Each is documented in
+[docs/nebariapp-crd-reference.md](docs/nebariapp-crd-reference.md):
+
+- **`routing.publicRoutes`** - paths that bypass OIDC auth (e.g., `/healthz`,
+  webhooks, public APIs).
+- **`routing.annotations`** - extra annotations on the generated HTTPRoute, useful
+  for ArgoCD tracking or other tooling.
+- **`auth.forwardAccessToken`** - send the user's access token to your app as
+  `Authorization: Bearer <token>` so it can decode the JWT itself.
+- **`auth.denyRedirect`** - return 401 instead of redirecting to Keycloak when
+  matching headers are present (avoids PKCE races on SPA page loads).
+- **`auth.spaClient`** - provision a separate public Keycloak client for browser-
+  based PKCE flows (React + `keycloak-js`, etc.).
+- **`auth.deviceFlowClient`** - provision a public client for the OAuth2 Device
+  Authorization Grant (CLIs and native apps).
+- **`auth.keycloakConfig`** - declaratively manage Keycloak realm groups and
+  client-level protocol mappers from the NebariApp.
+- **`auth.tokenExchange`** - opt this app into RFC 8693 token exchange so other
+  NebariApp clients can mint tokens for its audience.
+- **`landingPage`** - register the app on the Nebari landing page with an icon,
+  category, priority, and optional health check.
+- **`serviceAccountName`** - which ServiceAccount the operator should grant access
+  to the OIDC client Secret.
+- **`service.namespace`** - point the NebariApp at a Service in a different
+  namespace.
 
 For the complete field reference, see [docs/nebariapp-crd-reference.md](docs/nebariapp-crd-reference.md).
 
@@ -427,7 +456,7 @@ Gateway SecurityPolicy that handles the full OIDC flow:
    - IdToken-<suffix>     (JWT with user claims)
    - AccessToken-<suffix>
    - RefreshToken-<suffix>
-   (<suffix> is an 7-char, lower-case hex derived from the SecurityPolicy UID)
+   (<suffix> is an 8-char, lower-case hex derived from the SecurityPolicy UID via FNV-32a)
 7. Request (now with cookies) is forwarded to your app
 ```
 
@@ -531,7 +560,7 @@ file. Tests each example with `nebariapp.enabled=true` on a full Nebari
 infrastructure stack:
 
 - Creates a kind cluster with MetalLB, Envoy Gateway, cert-manager, and Keycloak
-- Installs the nebari-operator from the latest published release
+- Installs the nebari-operator from a pinned release (currently `v0.1.0-alpha.19`)
 - Deploys each example with NebariApp enabled and a `*.nebari.local` hostname
 - Verifies NebariApp reaches `Ready` condition (HTTPRoute created, TLS configured)
 - For auth-enabled examples (kustomize production, auth-fastapi), verifies

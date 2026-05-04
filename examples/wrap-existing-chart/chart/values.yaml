@@ -16,7 +16,7 @@ nebariapp:
     enabled: false
     provider: keycloak
     provisionClient: true
-    redirectURI: /
+    # redirectURI: /oauth2/callback   # Default (operator-supplied); set only to override
     scopes:
       - openid
       - profile

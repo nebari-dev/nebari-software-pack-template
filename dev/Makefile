@@ -68,7 +68,7 @@ _cluster-create: _clone-operator _kind-create _metallb _services _keycloak-setup
 	@echo ""
 	@echo "Run 'make up-basic' (or any up-* target) to deploy an example."
 
-OPERATOR_REF := main
+OPERATOR_REF := v0.1.0-alpha.19
 
 _clone-operator:
 	@if [ ! -d "$(OPERATOR_REPO)" ]; then \
@@ -110,7 +110,7 @@ _keycloak-setup:
 
 _operator:
 	@echo "Installing nebari-operator..."
-	kubectl apply -f https://github.com/nebari-dev/nebari-operator/releases/download/v0.1.0-alpha.5/install.yaml
+	kubectl apply -f https://github.com/nebari-dev/nebari-operator/releases/download/$(OPERATOR_REF)/install.yaml
 	kubectl wait --for=condition=available deployment/nebari-operator-controller-manager \
 		-n nebari-operator-system --timeout=120s
 	@echo "nebari-operator is running"

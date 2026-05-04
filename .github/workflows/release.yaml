@@ -70,16 +70,36 @@ jobs:
 
       - name: Update Helm repo index
         if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mkdir -p gh-pages
+          set -euo pipefail
+          GH_PAGES_URL="https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          REPO_URL="https://github.com/${{ github.repository }}/releases/download/${{ steps.chart.outputs.name }}-${{ steps.chart.outputs.version }}"
+
+          # Preserve any existing gh-pages history (and index) so prior chart
+          # releases are not lost. Bootstrap the branch on first release.
+          if git ls-remote --exit-code --heads "${GH_PAGES_URL}" gh-pages >/dev/null 2>&1; then
+            git clone --depth 1 --branch gh-pages "${GH_PAGES_URL}" gh-pages
+          else
+            mkdir -p gh-pages
+            git -C gh-pages init -b gh-pages
+            git -C gh-pages remote add origin "${GH_PAGES_URL}"
+          fi
+
           cp *.tgz gh-pages/
           cd gh-pages
-          git init
-          git checkout -b gh-pages
+
+          # Merge with the existing index when present so old chart versions
+          # remain installable from the Helm repo.
+          if [ -f index.yaml ]; then
+            helm repo index . --url "${REPO_URL}" --merge index.yaml
+          else
+            helm repo index . --url "${REPO_URL}"
+          fi
+
           git config user.name "$GITHUB_ACTOR"
           git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
-          git remote add origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
-          helm repo index . --url https://github.com/${{ github.repository }}/releases/download/${{ steps.chart.outputs.name }}-${{ steps.chart.outputs.version }}
           git add .
           git commit -m "Release ${{ steps.chart.outputs.name }}-${{ steps.chart.outputs.version }}"
-          git push origin gh-pages --force
+          git push origin gh-pages
