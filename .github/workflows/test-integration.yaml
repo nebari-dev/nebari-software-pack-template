@@ -215,7 +215,9 @@ jobs:
 
       - name: "Verify wrap-existing-chart NebariApp"
         run: |
-          kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance=test-wrap --timeout=120s
+          # Podinfo's chart labels its pods with app.kubernetes.io/name=<release>-podinfo
+          # and does not set app.kubernetes.io/instance, so wait on the Deployment instead.
+          kubectl wait --for=condition=available deployment/test-wrap-podinfo --timeout=120s
           kubectl wait --for=condition=Ready nebariapp/test-wrap-my-pack --timeout=120s
           kubectl get httproute -l app.kubernetes.io/managed-by=nebari-operator
           echo "wrap-existing-chart: NebariApp Ready"
