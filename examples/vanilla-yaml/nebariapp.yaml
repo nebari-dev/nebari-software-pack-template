@@ -21,7 +21,7 @@ spec:
     enabled: false
     provider: keycloak
     provisionClient: true
-    redirectURI: /
+    # redirectURI defaults to /oauth2/callback - override only if your app reserves that path
     scopes:
       - openid
       - profile

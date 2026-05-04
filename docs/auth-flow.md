@@ -354,6 +354,44 @@ userinfo endpoint and maps them to Superset roles (Admin, Gamma, Public). See it
 [nebari-values.yaml](https://github.com/nebari-dev/nebari-superset-pack/blob/main/examples/nebari-values.yaml)
 for the complete configuration.
 
+## NebariApp CRD vs Envoy Gateway SecurityPolicy
+
+The fields documented in [nebariapp-crd-reference.md](nebariapp-crd-reference.md) are the
+fields the **operator** understands - they go on `spec.auth` of the NebariApp resource.
+At runtime, the operator generates an Envoy Gateway `SecurityPolicy` from the NebariApp,
+and that SecurityPolicy has its own (much larger) set of OIDC tuning knobs.
+
+This section is specifically about the **Envoy Gateway SecurityPolicy OIDC
+filter** fields. Other Keycloak-side or client-provisioning features (`spaClient`,
+`deviceFlowClient`, `keycloakConfig`, `tokenExchange`) are first-class NebariApp
+fields and are documented in
+[nebariapp-crd-reference.md](nebariapp-crd-reference.md).
+
+For the OIDC filter fields specifically, mentally place each one in one of these
+buckets:
+
+1. **Surfaced on NebariApp.** The operator exposes the field as a NebariApp
+   `spec.auth.*` field and copies it into the SecurityPolicy at reconcile time.
+   Currently this includes `forwardAccessToken` (`auth.forwardAccessToken`) and
+   redirect-deny rules (`auth.denyRedirect`). Set these on the NebariApp.
+
+2. **Not surfaced on NebariApp.** Most fine-grained OIDC filter fields - including
+   `cookieNames`, `disableIdToken`, `disableAccessToken`, `passThroughAuthHeader`,
+   custom logout URLs, and similar - are not exposed on NebariApp today. To use
+   them, either:
+   - File an issue / PR on
+     [nebari-operator](https://github.com/nebari-dev/nebari-operator) asking for the
+     field to be plumbed through.
+   - Set `auth.enforceAtGateway: false` and manage your own `SecurityPolicy`
+     resource alongside the NebariApp. The operator will still provision the
+     Keycloak client and Secret, but won't generate a SecurityPolicy to conflict
+     with yours.
+
+The shape of the SecurityPolicy the operator generates is documented in
+[What the Operator Creates → 3. Envoy Gateway SecurityPolicy](#3-envoy-gateway-securitypolicy-when-enforceatgateway-true).
+Refer to the [Envoy Gateway SecurityPolicy reference](https://gateway.envoyproxy.io/docs/api/extension_types/#securitypolicy)
+for the full set of OIDC fields.
+
 ## Limitations
 
 - **Local development:** The OIDC flow requires Keycloak and Envoy Gateway. When
@@ -365,6 +403,7 @@ for the complete configuration.
 
 - **Cookie size:** Very large JWTs (many groups/roles) may exceed browser cookie
   size limits (typically 4KB). If this is an issue, reduce token size by limiting
-  scopes/claims at the Keycloak level, or use `disableIdToken`/`disableAccessToken`
-  in the SecurityPolicy OIDC config to skip setting cookies for tokens your app
-  doesn't need.
+  scopes/claims at the Keycloak level. Token-cookie suppression
+  (`disableIdToken`/`disableAccessToken`) is a SecurityPolicy field the operator
+  does not currently expose - see the boundary section above for how to use it
+  if you need to.

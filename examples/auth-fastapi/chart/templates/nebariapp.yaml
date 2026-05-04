@@ -30,7 +30,9 @@ spec:
     enabled: {{ .enabled | default true }}
     provider: {{ .provider | default "keycloak" }}
     provisionClient: {{ .provisionClient | default true }}
-    redirectURI: {{ .redirectURI | default "/" }}
+    {{- with .redirectURI }}
+    redirectURI: {{ . }}
+    {{- end }}
     {{- with .scopes }}
     scopes:
       {{- toYaml . | nindent 6 }}
