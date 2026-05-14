@@ -2,7 +2,7 @@
 
 This document defines the maturity levels for Nebari **first-party** software packs and the requirements for promoting a pack between levels. It applies only to packs maintained by the Nebari core team. Community-contributed packs are out of scope.
 
-Pack state is declared in a `pack-metadata.yaml` file at the root of each pack repo. The Nebari pack dashboard ([`nebari-dev/pack-dashboard`](https://github.com/nebari-dev/pack-dashboard)) aggregates these metadata files daily and renders a single view of every tracked pack. That dashboard is the canonical place pre-sales engineers consult before demos.
+Pack state is declared in a `pack-metadata.yaml` file at the root of each pack repo. The Nebari pack dashboard ([`nebari-dev/software-pack-dashboard`](https://github.com/nebari-dev/software-pack-dashboard)) aggregates these metadata files daily and renders a single view of every tracked pack. That dashboard is the canonical place pre-sales engineers consult before demos.
 
 ## Maturity Levels
 
