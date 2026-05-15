@@ -2,7 +2,7 @@
 
 This document defines the maturity levels for Nebari **first-party** software packs and the requirements for promoting a pack between levels. It applies only to packs maintained by the Nebari core team. Community-contributed packs are out of scope.
 
-Pack state is declared in a `pack-metadata.yaml` file at the root of each pack repo. The Nebari pack dashboard ([`nebari-dev/software-pack-dashboard`](https://github.com/nebari-dev/software-pack-dashboard)) aggregates these metadata files daily and renders a single view of every tracked pack. That dashboard is the canonical place pre-sales engineers consult before demos.
+Pack state is declared in a `pack-metadata.yaml` file at the root of each pack repo. The Nebari pack dashboard ([`nebari-dev/software-pack-dashboard`](https://github.com/nebari-dev/software-pack-dashboard)) aggregates these metadata files hourly and renders a single view of every tracked pack. That dashboard is the canonical place pre-sales engineers consult before demos.
 
 ## Maturity Levels
 
@@ -40,10 +40,12 @@ The dashboard automatically moves deprecated packs to a separate table.
 
 ## Pack Metadata File
 
-Every tracked pack has a `pack-metadata.yaml` at its repo root. This file is the source of truth for everything the dashboard displays and for the pack's declared maturity level. The schema is owned by the dashboard repo (`nebari-dev/pack-dashboard/schema/pack-metadata.schema.json`) and may be validated locally:
+Every tracked pack has a `pack-metadata.yaml` at its repo root. It is the source of truth for the pack's declared maturity level, ownership, and integration metadata. (Other dashboard columns - Description, latest release, last commit - are pulled from GitHub directly, not from this file. The Description column specifically uses the GitHub repo description.) The schema is owned by the dashboard repo (`nebari-dev/software-pack-dashboard/schema/pack-metadata.schema.json`) and may be validated locally:
 
 ```sh
-check-jsonschema --schemafile schema/pack-metadata.schema.json pack-metadata.yaml
+check-jsonschema \
+  --schemafile https://raw.githubusercontent.com/nebari-dev/software-pack-dashboard/main/schema/pack-metadata.schema.json \
+  pack-metadata.yaml
 ```
 
 Key fields the checklist depends on:
@@ -55,8 +57,7 @@ Key fields the checklist depends on:
 - `nebariapp_integration` — `none` | `partial` | `full` | `na`
 - `scope.standalone-supported` — `yes` | `no`
 - `last_promoted_at` / `last_promoted_pr` — updated on every promotion
-- `last_presales_demo` / `last_presales_demo_by` — updated on every successful pre-sales demo
-- `demo_notes` — current known gotchas, surfaced verbatim on the dashboard
+- `demo_notes` — current known gotchas, surfaced in the dashboard Notes column (first ~100 chars)
 
 See the full schema in the dashboard repo for required fields, validation rules, and the canonical example.
 
@@ -91,7 +92,7 @@ A promotion is a PR in the pack repo that:
 2. Updates the pack's `README.md` with the new declared level
 3. Has the required reviewers listed below
 
-The dashboard regenerates daily; no manual dashboard update is needed.
+The dashboard regenerates hourly; no manual dashboard update is needed.
 
 Required reviewers per promotion:
 
@@ -113,7 +114,7 @@ If "product owner" has not been named for a pack, the tech lead acts as product 
 - `[E]` Repo is created from the software pack template
 - `[E]` `CODEOWNERS` names at least one accountable engineer
 - `[E]` `pack-metadata.yaml` exists at the repo root, validates against the schema, and declares level + owner + scope flags
-- `[E]` Pack is listed in `nebari-dev/pack-dashboard/tracked-packs.yaml`
+- `[E]` Pack is listed in `nebari-dev/software-pack-dashboard/tracked-packs.yaml`
 - `[E]` README explains what the pack does and who it's for
 - `[B]` `product_owner` field is populated in `pack-metadata.yaml` (may be the tech lead by default)
 
@@ -174,7 +175,6 @@ If "product owner" has not been named for a pack, the tech lead acts as product 
 
 ### Pre-sales Verification
 - `[A]` Pre-sales engineer has run the demo end-to-end and signed off on the happy path
-- `[A]` `last_presales_demo` and `last_presales_demo_by` updated in `pack-metadata.yaml` after the demo
 - `[B]` Pre-sales engineer has confirmed the pack can be demoed without engineering on the call
 - `[B]` `demo_notes` in `pack-metadata.yaml` reflects current known demo gotchas (or is empty if none)
 - `[GA]` Pre-sales engineer has verified the demo flow on the GA release commit after release
@@ -193,9 +193,10 @@ If "product owner" has not been named for a pack, the tech lead acts as product 
 Once `pack-metadata.yaml` is populated and the pack is in `tracked-packs.yaml`, the dashboard will automatically flag:
 
 - **`stale`** — no commits in 90 days (and not deprecated)
-- **`demo-lapsed`** — at Alpha+ but no successful pre-sales demo in 60 days
 - **`no-product-owner`** — at GA but `product_owner` is null
 - **`metadata-missing`** / **`metadata-invalid`** — the file is missing or fails schema validation
+- **`repo-not-found`** — the pack repo could not be reached at all
+- **`deprecated`** — pack is marked `deprecated: true`; it also moves to the Deprecated packs table
 
 These are visibility flags, not formal blockers, but a pack with persistent flags is signaling that something in this checklist has decayed. Tech lead reviews flags weekly.
 
