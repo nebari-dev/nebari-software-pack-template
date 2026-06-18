@@ -69,6 +69,32 @@ Scope flags are declared in `pack-metadata.yaml` under the `scope:` key. Each fl
 
 Additional scope flags will be added here as they emerge.
 
+## Version Tagging Convention
+
+Packs version releases with [EffVer](https://jacobtomlinson.dev/effver/) (Effort Versioning): `vMACRO.MESO.MICRO`. The three numbers describe how much work an upgrade costs the people consuming the pack, not how large the change was to build:
+
+- **MICRO**: a drop-in. Bug fixes and additive features that need no action from existing users.
+- **MESO**: some effort. A larger fix or a small breaking change that needs a little adoption work.
+- **MACRO**: significant effort. A breaking overhaul; users should plan time to upgrade.
+
+While a pack is pre-1.0, EffVer collapses to `0.MACRO.MICRO`: the leading `0` marks the in-development phase, a breaking or significant change bumps the middle number (`0.2.0`), and a drop-in fix bumps the last (`0.1.1`).
+
+Tag rules:
+
+- Always prefix the tag with `v` (`v0.1.0`, `v1.2.0`). Do not prefix with the repo name (`nebari-foo-pack-0.1.0`) or any other string. One repo, one tag scheme.
+- Tags are three numeric segments; prereleases use a SemVer-style suffix (`-alpha.N`).
+
+Maturity maps to the tag shape as follows. The declared `level` in `pack-metadata.yaml` remains the source of truth; the tag is expected to line up with it but does not define it.
+
+| Level | Tag shape | Example |
+|---|---|---|
+| Experimental | usually unreleased; if tagged, a prerelease | `v0.1.0-alpha.1` |
+| Alpha | prerelease `v0.1.0-alpha.N` | `v0.1.0-alpha.3` |
+| Beta | bare `v0.x.y` (the whole `0.x` line) | `v0.2.1` |
+| GA | `v1.0.0` and up | `v1.0.0` |
+
+Beta is the entire `v0.x.y` line, not a single tag: once `v0.1.0` ships you keep versioning within `0.x` (a fix is `v0.1.1`, a breaking change is `v0.2.0`), and leaving `0.x` for `v1.0.0` is the deliberate "this is stable now" signal. Do not renumber an already-published higher version downward to match a label; correct the `level` field instead, or cut the next release at a corrected number.
+
 ## How to Use This Checklist
 
 Each item below is tagged with the maturity level at which it becomes a **blocker** for promotion:
@@ -168,7 +194,7 @@ If "product owner" has not been named for a pack, the tech lead acts as product 
 - `[B]` Chart is publishable to `nebari-dev.github.io/helm-repository`
 - `[B]` Release workflow is configured and at least one pre-1.0 release has been published
 - `[B]` `appVersion` in `Chart.yaml` matches the upstream application version being wrapped
-- `[GA]` Chart version is set to `1.0.0` and follows semver
+- `[GA]` Chart version is set to `1.0.0` and follows the [version tagging convention](#version-tagging-convention)
 - `[GA]` Custom container images (if any) are published and accessible
 - `[GA]` Helm repo index updates correctly after release
 - `[GA]` Upgrade smoke test in CI: `helm install` + `helm upgrade` succeeds without errors
