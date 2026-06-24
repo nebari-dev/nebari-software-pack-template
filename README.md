@@ -848,6 +848,54 @@ helm version
 helm dependency update examples/wrap-existing-chart/chart/
 ```
 
+## Documentation Portal
+
+Pack docs are served at `packs.nebari.dev/<repo-short-name>/`. The portal routes each
+pack's docs site transparently via a Cloudflare edge Worker so users see a single
+unified domain, while each pack deploys and previews independently.
+
+### Opting in
+
+1. **Add `docs_site: true` to `pack-metadata.yaml`:**
+
+   ```yaml
+   docs_site: true
+   links:
+     docs: https://packs.nebari.dev/<your-repo-name>/
+   ```
+
+2. **Copy `.github/workflows/docs.yml` from this repo** into your pack repo and
+   update two values:
+
+   | Variable | Set to |
+   |----------|--------|
+   | `PACK_SLUG` (env) | your repo's short name (the segment after `nebari-dev/`) |
+   | `--project-name=...` in the `wrangler` command | the matching Cloudflare Pages project name |
+
+   For most packs, `PACK_SLUG` and the project name are the same (e.g., `llm-serving-pack`).
+   The template repo is a special case: `PACK_SLUG: building-a-software-pack` routes to
+   `packs.nebari.dev/building-a-software-pack/` but deploys to the `nebari-software-pack-template`
+   CF Pages project.
+
+3. **Add your pack to `tracked-packs.yaml`** in
+   [software-pack-dashboard](https://github.com/nebari-dev/software-pack-dashboard) if it is
+   not already there. The dashboard schema is at
+   `nebari-dev/software-pack-dashboard/schema/pack-metadata.schema.json`.
+
+### How it works
+
+- **Production:** push to `main` builds Hugo with `baseURL https://packs.nebari.dev/<slug>/`
+  and deploys to the pack's Cloudflare Pages project.
+- **PR previews:** every pull request builds with `baseURL https://<alias>.<slug>.pages.dev/`
+  and deploys to a preview deployment; a bot comments the preview URL on the PR.
+- **Fork PRs:** the build and link-check run, but the deploy step is skipped (fork PRs
+  cannot read org secrets).
+
+The edge Worker at `packs.nebari.dev` proxies `/<slug>/*` to `<slug>.pages.dev/*`
+transparently. For packs in `tracked-packs.yaml` with `docs_site: true`, the route is
+generated automatically. The `building-a-software-pack` route for this template repo is
+wired in the dashboard's static extra-routes map.
+
 ## License
 
 Apache 2.0 - see [LICENSE](LICENSE).

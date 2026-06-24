@@ -25,5 +25,9 @@ venv/
 .DS_Store
 Thumbs.db
 
+# Hugo build output
+docs/site/public/
+docs/site/.hugo_build.lock
+
 # Claude
 CLAUDE.md
