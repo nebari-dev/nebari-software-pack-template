@@ -1,0 +1,64 @@
+name: Docs
+on:
+  push:
+    branches: [main]
+    paths: ['docs/site/**', '.github/workflows/docs.yml']
+  pull_request:
+    paths: ['docs/site/**', '.github/workflows/docs.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  pull-requests: write
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  PACK_SLUG: building-a-software-pack
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-go@v5
+        with: { go-version-file: docs/site/go.mod, cache: false }
+      - uses: peaceiris/actions-hugo@v3
+        with: { hugo-version: "0.159.0", extended: true }
+
+      - name: Compute baseURL and deploy branch
+        id: base
+        env:
+          GH_REF: ${{ github.ref }}
+          GH_HEAD_REF: ${{ github.head_ref || github.ref_name }}
+        run: |
+          if [ "$GH_REF" = "refs/heads/main" ]; then
+            echo "url=https://packs.nebari.dev/${PACK_SLUG}/" >> "$GITHUB_OUTPUT"
+            echo "branch=main" >> "$GITHUB_OUTPUT"
+          else
+            HEAD="$GH_HEAD_REF"
+            ALIAS=$(printf '%s' "$HEAD" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g')
+            echo "url=https://${ALIAS}.${PACK_SLUG}.pages.dev/" >> "$GITHUB_OUTPUT"
+            echo "branch=${HEAD}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build
+        run: cd docs/site && hugo --gc --minify --baseURL "${{ steps.base.outputs.url }}"
+
+      # Fork PRs cannot read secrets; skip deploy there (build above still gates).
+      - name: Deploy to Cloudflare Pages
+        id: deploy
+        if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy docs/site/public --project-name=nebari-software-pack-template --branch=${{ steps.base.outputs.branch }}
+
+      - name: Comment preview URL
+        if: ${{ github.event_name == 'pull_request' && steps.deploy.outcome == 'success' }}
+        uses: thollander/actions-comment-pull-request@v3
+        with:
+          comment-tag: docs-preview
+          message: |
+            📄 **Docs preview** for `${{ github.event.pull_request.head.ref }}`:
+            ${{ steps.deploy.outputs.pages-deployment-alias-url }}
