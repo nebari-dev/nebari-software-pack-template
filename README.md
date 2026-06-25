@@ -882,6 +882,9 @@ unified domain, while each pack deploys and previews independently.
    not already there. The dashboard schema is at
    `nebari-dev/software-pack-dashboard/schema/pack-metadata.schema.json`.
 
+4. **Set `params.logoLink = "https://packs.nebari.dev/"` in `hugo.toml`** so the header
+   logo returns to the portal.
+
 ### How it works
 
 - **Production:** push to `main` builds Hugo with `baseURL https://packs.nebari.dev/<slug>/`
