@@ -864,13 +864,14 @@ unified domain, while each pack deploys and previews independently.
      docs: https://packs.nebari.dev/<your-repo-name>/
    ```
 
-2. **Copy `.github/workflows/docs.yml` from this repo** into your pack repo and
-   update two values:
+2. **Copy `.github/workflows/docs.yml` and `.github/workflows/docs-preview-cleanup.yml`
+   from this repo** into your pack repo and update these values:
 
-   | Variable | Set to |
-   |----------|--------|
-   | `PACK_SLUG` (env) | your repo's short name (the segment after `nebari-dev/`) |
-   | `--project-name=...` in the `wrangler` command | the matching Cloudflare Pages project name |
+   | Variable | In | Set to |
+   |----------|----|--------|
+   | `PACK_SLUG` (env) | `docs.yml` | your repo's short name (the segment after `nebari-dev/`) |
+   | `--project-name=...` in the `wrangler` command | `docs.yml` | the matching Cloudflare Pages project name |
+   | `CF_PROJECT` (env) | `docs-preview-cleanup.yml` | the same Cloudflare Pages project name |
 
    For most packs, `PACK_SLUG` and the project name are the same (e.g., `llm-serving-pack`).
    The template repo is a special case: `PACK_SLUG: building-a-software-pack` routes to
@@ -893,6 +894,9 @@ unified domain, while each pack deploys and previews independently.
   and deploys to a preview deployment; a bot comments the preview URL on the PR.
 - **Fork PRs:** the build and link-check run, but the deploy step is skipped (fork PRs
   cannot read org secrets).
+- **Cleanup:** when a PR closes (merged or not), `docs-preview-cleanup.yml` deletes that
+  branch's preview deployments. Direct Upload deploys are not tied to the git branch
+  lifecycle, so without this previews would linger after the branch is gone.
 
 The edge Worker at `packs.nebari.dev` proxies `/<slug>/*` to `<slug>.pages.dev/*`
 transparently. For packs in `tracked-packs.yaml` with `docs_site: true`, the route is
